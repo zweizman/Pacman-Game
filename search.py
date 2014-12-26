@@ -4,7 +4,9 @@
 # project. You are free to use and extend these projects for educational
 # purposes. The Pacman AI projects were developed at UC Berkeley, primarily by
 # John DeNero (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
-# For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
+# Student side autograding was added by Brad Miller, Nick Hay, and Pieter 
+# Abbeel in Spring 2013.
+# For more info, see http://inst.eecs.berkeley.edu/~cs188/pacman/pacman.html
 
 """
 In search.py, you will implement generic search algorithms which are called
@@ -12,7 +14,6 @@ by Pacman agents (in searchAgents.py).
 """
 
 import util
-import sys
 
 class SearchProblem:
     """
@@ -57,6 +58,7 @@ class SearchProblem:
         """
         util.raiseNotDefined()
 
+
 def tinyMazeSearch(problem):
     """
     Returns a sequence of moves that solves tinyMaze.  For any other
@@ -77,210 +79,161 @@ def depthFirstSearch(problem):
     To get started, you might want to try some of these simple commands to
     understand the search problem that is being passed in:
 
-    #print "Start:", problem.getStartState()
-    #print "Is the start a goal?", problem.isGoalState(problem.getStartState())
-    #print "Start's successors:", problem.getSuccessors(problem.getStartState())
+    print "Start:", problem.getStartState()
+    print "Is the start a goal?", problem.isGoalState(problem.getStartState())
+    print "Start's successors:", problem.getSuccessors(problem.getStartState())
     """
-  
-    closedSet = set()
-    dataStructure = util.Stack()
-    path = []
-    
-    pathTuple = () 
-    if "startState" in dir(problem):
-        nodeCoordStartState = problem.startState
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    elif "getStartState" in dir(problem):
-        nodeCoordStartState = problem.getStartState()
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    else:
-        raise Exception("No recognizable function for getting the Start State")
+    closed = set()
+    fringe = util.Stack()
+    fringe.push(makeNode(problem.getStartState()))
+
+    while True:
+        if fringe.isEmpty():
+            return []
+
+        node = fringe.pop()
         
-    dataStructure.push(pathTuple)
+        if problem.isGoalState(node.getState()):
+            return node.getActions()
+        if node.getState() not in closed:
+            closed.add(node.getState())
+            insertAll(fringe, expand(node, problem))
 
-    result = findSolution(problem, pathTuple, dataStructure, closedSet)
+
+def makeNode(state):
+    return Node(state)
+
+def expand(node, problem):
+    parentNode = node
+    childList = []
+    #print node.getActions()
+    successors = problem.getSuccessors(node.getState())
+    #print successors
+    for i in range(len(successors)):
+        successor = successors[i]
+        child = makeNode(successor[0])
+        child.setActionList(parentNode.getActions())
+        child.addAction(successor[1])
+        child.setCumulativeCost(parentNode.getCumulativeCost() + successor[2])
+        childList.append(child)
+
+    return childList
+
+def insertAll(stack, nodeList):
+    for node in nodeList:
+        stack.push(node)
+
+def insertAllInPriorityQueue(queue, nodeList):
+    for node in nodeList:
+        queue.push(node, node.getDepth())
+
+def insertAllWithCost(queue, nodeList):
+    for node in nodeList:
+        queue.push(node, node.getCumulativeCost())
+
+def insertAllWithCostAndHeuristic(queue, nodeList, heuristic, problem):
+    for node in nodeList:
+        queue.push(node, node.getCumulativeCost() + heuristic(node.getState(), problem))
+
+class Node:
     
-    if result is None:
-        raise Exception("No solution exists!")
+    def __init__(self, state):
+        self.actionList = []
+        self.state = state
+        self.cumulativeCost = 0
 
-    path = getListOfActions(result)
-    #print "[Final Path] [%s] with length %d" % (str(result), len(result))
-    #print "Path: %s with length %d" % (str(path), len(path)) 
-    return path
+    def getState(self):
+        return self.state
+
+    def getActions(self):
+        return self.actionList
+  
+    def setActionList(self, actions):
+        self.actionList = actions[:]
+
+    def addAction(self, action):
+        self.actionList.append(action)
+
+    def getDepth(self):
+        return len(self.actionList)
+
+    def getCumulativeCost(self):
+        return self.cumulativeCost
+
+    def setCumulativeCost(self, cost):
+        self.cumulativeCost = cost
 
 def breadthFirstSearch(problem):
     """
     Search the shallowest nodes in the search tree first.
     """
+    closed = set()
+    fringe = util.PriorityQueue()
+    node = makeNode(problem.getStartState())
+    fringe.push(node, node.getDepth())
 
-    closedSet = set()
-    dataStructure = util.Queue()
-    path = []
-   
-    pathTuple = () 
-    if "startState" in dir(problem):
-        nodeCoordStartState = problem.startState
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    elif "getStartState" in dir(problem):
-        nodeCoordStartState = problem.getStartState()
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    else:
-        raise Exception("No recognizable function for getting the Start State")
+    while True:
+        if fringe.isEmpty():
+            return []
+
+        node = fringe.pop()
         
-    dataStructure.push(pathTuple)
+        if problem.isGoalState(node.getState()):
+            return node.getActions()
+        if node.getState() not in closed:
+            closed.add(node.getState())
+            insertAllInPriorityQueue(fringe, expand(node, problem))
 
-    result = findSolution(problem, pathTuple, dataStructure, closedSet)
-    
-    if result is None:
-        raise Exception("No solution exists!")
-    
-    path = getListOfActions(result)
-
-    #print "[Final Path] [%s] with length %d" % (str(result), len(result))
-    #print "Path: %s with length %d" % (str(path), len(path)) 
-    return path
-
-def getListOfActions(path):
-    pathList = []
-    for arc in path:
-        if arc[1] is not "":
-            pathList.append(arc[1])
-
-    return pathList
-     
 def uniformCostSearch(problem):
     "Search the node of least total cost first. "
-    
-    closedSet = set()
-    dataStructure = util.PriorityQueueWithFunction(lambda (path): problem.getCostOfActions(getListOfActions(path)))
-    path = []
-    
-    pathTuple = () 
-    if "startState" in dir(problem):
-        nodeCoordStartState = problem.startState
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    elif "getStartState" in dir(problem):
-        nodeCoordStartState = problem.getStartState()
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    else:
-        raise Exception("No recognizable function for getting the Start State")
+    closed = set()
+    fringe = util.PriorityQueue()
+    node = makeNode(problem.getStartState())
+    node.setCumulativeCost(0)
+    fringe.push(node, node.getCumulativeCost())
 
-    dataStructure.push(pathTuple)
+    while True:
+        if fringe.isEmpty():
+            return []
 
-    result = findSolution(problem, pathTuple, dataStructure, closedSet)
-    
-    if result is None:
-        raise Exception("No solution exists!")
-  
-    path = getListOfActions(result)
-
-    #print "[Final Path] [%s] with length %d" % (str(result), len(result))
-    #print "Path: %s with length %d" % (str(path), len(path)) 
-    return path 
+        node = fringe.pop()
+        
+        if problem.isGoalState(node.getState()):
+            return node.getActions()
+        if node.getState() not in closed:
+            closed.add(node.getState())
+            insertAllWithCost(fringe, expand(node, problem))
 
 def nullHeuristic(state, problem=None):
     """
     A heuristic function estimates the cost from the current state to the nearest
     goal in the provided SearchProblem.  This heuristic is trivial.
     """
-
     return 0
 
-def getFn(gN, hN):
-    #print "F(n): %d G(n) %d H(n) %d" % (gN + hN, gN, hN)
-    return gN + hN
-
-def getHeuristicFunction(problem, heuristic): 
-    return lambda (path): getFn(problem.getCostOfActions(getListOfActions(path)), heuristic(path[-1][0], problem))
-
 def aStarSearch(problem, heuristic=nullHeuristic):
-    closedSet = set()
-    dataStructure  = util.PriorityQueueWithFunction(getHeuristicFunction(problem, heuristic))
-    path  = []
-   
-    pathTuple = () 
-    if "startState" in dir(problem):
-        nodeCoordStartState = problem.startState
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    elif "getStartState" in dir(problem):
-        nodeCoordStartState = problem.getStartState()
-        pathTuple = ((nodeCoordStartState, "", 0), )
-    else:
-        raise Exception("No recognizable function for getting the Start State")
+    "Search the node that has the lowest combined cost and heuristic first."
+    closed = set()
+    fringe = util.PriorityQueue()
+    node = makeNode(problem.getStartState())
+    node.setCumulativeCost(0)
+    fringe.push(node, node.getCumulativeCost() + heuristic(node.getState(), problem))
 
-    dataStructure.push(pathTuple)
+    while True:
+        if fringe.isEmpty():
+            return []
 
-    result = findSolution(problem, pathTuple, dataStructure, closedSet)
-    
-    if result is None:
-        raise Exception("No solution exists!")
-  
-    path = getListOfActions(result)
-
-    #print "[Final Path] [%s] with length %d" % (str(result), len(result))
-    #print "Path: %s with length %d" % (str(path), len(path)) 
-    return path 
-
-
-def findSolution(problem=None, startNode=(((0,0), "", 0)), dataStructure=util.Stack(), closedSet=None):
-    """
-    A function that takes a problem and identifies if there is a solution to the pacman maze.  Returns
-    a list of arcs if the solution does exist.
-    """
-    
-    nodeLocationIndex       = 0
-    nodeArcDirectionIndex   = 1
-    nodeArcCostIndex        = 2
-    problemStateIndex        = 3 
-     
-    if problem is None:
-        #print "No Problem"
-        return None
-
-    if dataStructure.isEmpty():
-        #print "[Backtrack] Empty Queue"
-        return None   
-
-    while not dataStructure.isEmpty():
-        destPath = dataStructure.pop()
-        destNode = destPath[-1]
-        destNodeCord = destNode[nodeLocationIndex]
-        consideredNodeDir = destNode[nodeArcDirectionIndex]
-        problemState = None
-
-        if closedSet is not None and destNodeCord in closedSet:
-            #print "[Visited] (%s)" % str(destNodeCord)
-            continue
-     
-        #print "[Expanding] (%s)" % str(destPath) 
+        node = fringe.pop()
         
-        if problemState is not None and problem.isGoalState(problemState): 
-            #print "[Success] Reached Goal State at (%s)" % str(destNodeCord)
-            return destPath
-        elif problemState is None and problem.isGoalState(destNodeCord):
-            return destPath
+        if problem.isGoalState(node.getState()):
+            return node.getActions()
+        if node.getState() not in closed:
+            closed.add(node.getState())
+            insertAllWithCostAndHeuristic(fringe, expand(node, problem), heuristic, problem)
 
-        successors = ()
-        successors = problem.getSuccessors(destNodeCord)
-        
-        if not successors:
-            #print "[Dead-end] %s" % str(destNodeCord)
-            continue
-
-        nodesThisLevel = len(successors)
-        for node in successors:
-            #print "[Child] (%s), [Parent] (%s)" % (str(node), str(destNode))
-            dataStructure.push(tuple(list(destPath) + [node])) 
-
-        if closedSet is not None:
-            closedSet.add(destNodeCord)
-
-    return None
 
 # Abbreviations
 bfs = breadthFirstSearch
 dfs = depthFirstSearch
 astar = aStarSearch
 ucs = uniformCostSearch
-
-
